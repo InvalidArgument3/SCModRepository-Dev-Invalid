@@ -1,0 +1,42 @@
+name: "Upload Any Mod on Change"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Gamemode Mods/**'
+      - 'Utility Mods/**'
+      - 'Weapon Mods/**'
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Find changed Mod directory
+        id: findmod
+        run: |
+          # Using git diff to find directories that contain changed modinfo.sbmi files
+          MOD_DIR=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | grep 'modinfo.sbmi' | sed -E 's|/[^/]+$||' | head -n 1)
+          echo "Mod directory with changes: $MOD_DIR"
+          echo "::set-output name=MOD_DIR::${MOD_DIR}"
+
+      - name: Extract Workshop ID from modinfo.sbmi
+        id: getid
+        run: |
+          WORKSHOP_ID=$(grep 'WorkshopID' "${{ github.workspace }}/${{ steps.findmod.outputs.MOD_DIR }}/modinfo.sbmi" | cut -d ':' -f2 | xargs)
+          echo "Extracted Workshop ID: $WORKSHOP_ID"
+          echo "::set-output name=WORKSHOP_ID::$WORKSHOP_ID"
+
+      - uses: AnarkisGaming/workshop@v1
+        if: steps.findmod.outputs.MOD_DIR && steps.getid.outputs.WORKSHOP_ID
+        with:
+          appID: 244850
+          publishedFileID: ${{ steps.getid.outputs.WORKSHOP_ID }}
+          path: ${{ github.workspace }}/${{ steps.findmod.outputs.MOD_DIR }}
+          changelog: ${{ github.event.head_commit.message }}
+        env:
+          STEAM_ACCOUNT_NAME: ${{ secrets.STEAM_ACCOUNT_NAME }}
+          STEAM_PASSWORD: ${{ secrets.STEAM_PASSWORD }}
