@@ -15,28 +15,30 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Extract Workshop ID from modinfo.sbmi
-        id: getid
+      - name: Find changed Mod directories
+        id: findmod
         run: |
-          # Find the modinfo.sbmi files in all mod folders
-          sbmi_files=$(find "${{ github.workspace }}" -name 'modinfo.sbmi')
+          # Using git diff to find all directories that contain changed modinfo.sbmi files
+          MOD_DIRS=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | grep 'modinfo.sbmi' | sed -E 's|/[^/]+$||' | sort -u)
+          echo "Mod directories with changes: $MOD_DIRS"
+          echo "::set-output name=MOD_DIRS::${MOD_DIRS}"
 
-          # Extract Workshop IDs
-          for sbmi_file in $sbmi_files; do
-            workshop_id=$(grep 'WorkshopID' "$sbmi_file" | cut -d ':' -f2 | xargs)
-            if [ -n "$workshop_id" ]; then
-              echo "::set-output name=WORKSHOP_ID::$workshop_id"
-              break  # Stop after finding the first valid Workshop ID
+      - name: Upload mods to Steam Workshop
+        id: upload
+        run: |
+          IFS=$'\n'
+          for MOD_DIR in ${{ steps.findmod.outputs.MOD_DIRS }}
+          do
+            WORKSHOP_ID=$(grep 'WorkshopID' "${{ github.workspace }}/${MOD_DIR}/modinfo.sbmi" | cut -d ':' -f2 | xargs)
+            if [ -n "$WORKSHOP_ID" ]; then
+              echo "Uploading Mod Directory: $MOD_DIR with Workshop ID: $WORKSHOP_ID"
+              AnarkisGaming/workshop@v1 with:
+                appID: 244850
+                publishedFileID: $WORKSHOP_ID
+                path: ${{ github.workspace }}/$MOD_DIR
+                changelog: ${{ github.event.head_commit.message }}
+              env:
+                STEAM_ACCOUNT_NAME: ${{ secrets.STEAM_ACCOUNT_NAME }}
+                STEAM_PASSWORD: ${{ secrets.STEAM_PASSWORD }}
             fi
           done
-
-      - uses: AnarkisGaming/workshop@v1
-        if: steps.getid.outputs.WORKSHOP_ID
-        with:
-          appID: 244850
-          publishedFileID: ${{ steps.getid.outputs.WORKSHOP_ID }}
-          path: "${{ github.workspace }}"
-          changelog: ${{ github.event.head_commit.message }}
-        env:
-          STEAM_ACCOUNT_NAME: ${{ secrets.STEAM_ACCOUNT_NAME }}
-          STEAM_PASSWORD: ${{ secrets.STEAM_PASSWORD }}
