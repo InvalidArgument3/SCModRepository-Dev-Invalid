@@ -15,27 +15,27 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Find changed Mod directory
-        id: findmod
-        run: |
-          # Using git diff to find directories that contain changed modinfo.sbmi files
-          MOD_DIR=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | grep 'modinfo.sbmi' | sed -E 's|/[^/]+$||' | head -n 1)
-          echo "Mod directory with changes: $MOD_DIR"
-          echo "::set-output name=MOD_DIR::${MOD_DIR}"
-
       - name: Extract Workshop ID from modinfo.sbmi
         id: getid
         run: |
-          WORKSHOP_ID=$(grep 'WorkshopID' "${{ github.workspace }}/${{ steps.findmod.outputs.MOD_DIR }}/modinfo.sbmi" | cut -d ':' -f2 | xargs)
-          echo "Extracted Workshop ID: $WORKSHOP_ID"
-          echo "::set-output name=WORKSHOP_ID::$WORKSHOP_ID"
+          # Find the modinfo.sbmi files in all mod folders
+          sbmi_files=$(find "${{ github.workspace }}" -name 'modinfo.sbmi')
+
+          # Extract Workshop IDs
+          for sbmi_file in $sbmi_files; do
+            workshop_id=$(grep 'WorkshopID' "$sbmi_file" | cut -d ':' -f2 | xargs)
+            if [ -n "$workshop_id" ]; then
+              echo "::set-output name=WORKSHOP_ID::$workshop_id"
+              break  # Stop after finding the first valid Workshop ID
+            fi
+          done
 
       - uses: AnarkisGaming/workshop@v1
-        if: steps.findmod.outputs.MOD_DIR && steps.getid.outputs.WORKSHOP_ID
+        if: steps.getid.outputs.WORKSHOP_ID
         with:
           appID: 244850
           publishedFileID: ${{ steps.getid.outputs.WORKSHOP_ID }}
-          path: ${{ github.workspace }}/${{ steps.findmod.outputs.MOD_DIR }}
+          path: "${{ github.workspace }}"
           changelog: ${{ github.event.head_commit.message }}
         env:
           STEAM_ACCOUNT_NAME: ${{ secrets.STEAM_ACCOUNT_NAME }}
