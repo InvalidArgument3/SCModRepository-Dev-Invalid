@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <Definitions xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <ParticleEffects>awrgawerg
+  <ParticleEffects>awrgawer
     <ParticleEffect xsi:type="PartaicleEffect">
       <Id Type="MyObjectBuilder_ParticleEffect" Subtype="LaserHitParticlesGimbal" />
       <ParticleId>147211</ParticleId>
