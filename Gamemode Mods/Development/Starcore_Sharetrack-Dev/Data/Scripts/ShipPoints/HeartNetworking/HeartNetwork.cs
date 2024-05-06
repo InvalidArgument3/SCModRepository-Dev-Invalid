@@ -1,28 +1,25 @@
-﻿using Sandbox.ModAPI;
-using SCModRepository.Gamemode_Mods.Stable.Starcore_Sharetrack.Data.Scripts.ShipPoints.MatchTimer;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using klime.PointCheck;
+using Sandbox.ModAPI;
 using VRage.Game.ModAPI;
-using VRageMath;
 
-namespace Scripts.ShipPoints.HeartNetwork
+namespace ShipPoints.HeartNetworking
 {
     public class HeartNetwork
     {
         public static HeartNetwork I;
 
-        public ushort NetworkId { get; private set; }
+        private int _networkLoadUpdate;
 
         public int NetworkLoadTicks = 240;
-        public int TotalNetworkLoad { get; private set; } = 0;
+
+
+        private readonly List<IMyPlayer> TempPlayers = new List<IMyPlayer>();
         public Dictionary<Type, int> TypeNetworkLoad = new Dictionary<Type, int>();
 
-        private int networkLoadUpdate = 0;
+        public ushort NetworkId { get; private set; }
+        public int TotalNetworkLoad { get; private set; }
 
         public void LoadData(ushort networkId)
         {
@@ -31,10 +28,7 @@ namespace Scripts.ShipPoints.HeartNetwork
             NetworkId = networkId;
             MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(NetworkId, ReceivedPacket);
 
-            foreach (var type in PacketBase.Types)
-            {
-                TypeNetworkLoad.Add(type, 0);
-            }
+            foreach (var type in PacketBase.Types) TypeNetworkLoad.Add(type, 0);
         }
 
         public void UnloadData()
@@ -45,10 +39,10 @@ namespace Scripts.ShipPoints.HeartNetwork
 
         public void Update()
         {
-            networkLoadUpdate--;
-            if (networkLoadUpdate <= 0)
+            _networkLoadUpdate--;
+            if (_networkLoadUpdate <= 0)
             {
-                networkLoadUpdate = NetworkLoadTicks;
+                _networkLoadUpdate = NetworkLoadTicks;
                 TotalNetworkLoad = 0;
                 foreach (var networkLoadArray in TypeNetworkLoad.Keys.ToArray())
                 {
@@ -56,15 +50,15 @@ namespace Scripts.ShipPoints.HeartNetwork
                     TypeNetworkLoad[networkLoadArray] = 0;
                 }
 
-                TotalNetworkLoad /= (NetworkLoadTicks / 60); // Average per-second
+                TotalNetworkLoad /= NetworkLoadTicks / 60; // Average per-second
             }
         }
 
-        void ReceivedPacket(ushort channelId, byte[] serialized, ulong senderSteamId, bool isSenderServer)
+        private void ReceivedPacket(ushort channelId, byte[] serialized, ulong senderSteamId, bool isSenderServer)
         {
             try
             {
-                PacketBase packet = MyAPIGateway.Utilities.SerializeFromBinary<PacketBase>(serialized);
+                var packet = MyAPIGateway.Utilities.SerializeFromBinary<PacketBase>(serialized);
                 TypeNetworkLoad[packet.GetType()] += serialized.Length;
                 HandlePacket(packet, senderSteamId);
             }
@@ -74,13 +68,10 @@ namespace Scripts.ShipPoints.HeartNetwork
             }
         }
 
-        void HandlePacket(PacketBase packet, ulong senderSteamId)
+        private void HandlePacket(PacketBase packet, ulong senderSteamId)
         {
             packet.Received(senderSteamId);
         }
-
-
-
 
 
         public KeyValuePair<Type, int> HighestNetworkLoad()
@@ -88,12 +79,8 @@ namespace Scripts.ShipPoints.HeartNetwork
             Type highest = null;
 
             foreach (var networkLoadArray in TypeNetworkLoad)
-            {
                 if (highest == null || networkLoadArray.Value > TypeNetworkLoad[highest])
-                {
                     highest = networkLoadArray.Key;
-                }
-            }
 
             return new KeyValuePair<Type, int>(highest, TypeNetworkLoad[highest]);
         }
@@ -113,9 +100,7 @@ namespace Scripts.ShipPoints.HeartNetwork
             RelayToServer(packet, MyAPIGateway.Session?.Player?.SteamUserId ?? 0, serialized);
         }
 
-
-        List<IMyPlayer> TempPlayers = new List<IMyPlayer>();
-        void RelayToClients(PacketBase packet, ulong senderSteamId = 0, byte[] serialized = null)
+        private void RelayToClients(PacketBase packet, ulong senderSteamId = 0, byte[] serialized = null)
         {
             if (!MyAPIGateway.Multiplayer.IsServer)
                 return;
@@ -123,7 +108,7 @@ namespace Scripts.ShipPoints.HeartNetwork
             TempPlayers.Clear();
             MyAPIGateway.Players.GetPlayers(TempPlayers);
 
-            foreach (IMyPlayer p in TempPlayers)
+            foreach (var p in TempPlayers)
             {
                 // skip sending to self (server player) or back to sender
                 if (p.SteamUserId == MyAPIGateway.Multiplayer.ServerId || p.SteamUserId == senderSteamId)
@@ -138,7 +123,8 @@ namespace Scripts.ShipPoints.HeartNetwork
             TempPlayers.Clear();
         }
 
-        void RelayToClient(PacketBase packet, ulong playerSteamId, ulong senderSteamId, byte[] serialized = null)
+        private void RelayToClient(PacketBase packet, ulong playerSteamId, ulong senderSteamId,
+            byte[] serialized = null)
         {
             if (playerSteamId == MyAPIGateway.Multiplayer.ServerId || playerSteamId == senderSteamId)
                 return;
@@ -149,7 +135,7 @@ namespace Scripts.ShipPoints.HeartNetwork
             MyAPIGateway.Multiplayer.SendMessageTo(NetworkId, serialized, playerSteamId);
         }
 
-        void RelayToServer(PacketBase packet, ulong senderSteamId = 0, byte[] serialized = null)
+        private void RelayToServer(PacketBase packet, ulong senderSteamId = 0, byte[] serialized = null)
         {
             if (senderSteamId == MyAPIGateway.Multiplayer.ServerId)
                 return;

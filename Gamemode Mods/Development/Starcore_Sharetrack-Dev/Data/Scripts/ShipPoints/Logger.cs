@@ -9,7 +9,7 @@ using VRage.Game.Components;
 using VRage.Game.ModAPI;
 using VRage.Utils;
 
-namespace klime.PointCheck
+namespace ShipPoints
 {
     /// <summary>
     ///     <para>Standalone logger, does not require any setup.</para>
@@ -51,6 +51,7 @@ namespace klime.PointCheck
 
         private class Handler
         {
+            private readonly StringBuilder _sb = new StringBuilder(64);
             private string _errorPrintText;
             private int _indent;
             private string _modName = string.Empty;
@@ -59,8 +60,6 @@ namespace klime.PointCheck
             private IMyHudNotification _notifyInfo;
 
             private List<string> _preInitMessages;
-
-            private readonly StringBuilder _sb = new StringBuilder(64);
             private Log _sessionComp;
 
             private TextWriter _writer;
@@ -71,10 +70,7 @@ namespace klime.PointCheck
 
             public string ModName
             {
-                get
-                {
-                    return _modName;
-                }
+                get { return _modName; }
                 set
                 {
                     _modName = value;
@@ -93,7 +89,7 @@ namespace klime.PointCheck
                     return;
                 }
 
-                this._sessionComp = sessionComp;
+                _sessionComp = sessionComp;
 
                 if (string.IsNullOrWhiteSpace(ModName))
                     ModName = sessionComp.ModContext.ModName;

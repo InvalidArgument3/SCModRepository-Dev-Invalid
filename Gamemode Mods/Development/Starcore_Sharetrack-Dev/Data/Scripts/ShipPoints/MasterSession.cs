@@ -1,26 +1,18 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using klime.PointCheck;
-using Math0424.Networking;
-using Sandbox.ModAPI;
-using Scripts.ShipPoints.HeartNetwork;
-using SENetworkAPI;
 using ShipPoints.Commands;
+using ShipPoints.HeartNetworking;
+using ShipPoints.ShipTracking;
 using VRage.Game.Components;
 
-namespace SCModRepository_Dev.Gamemode_Mods.Development.Starcore_Sharetrack_Dev.Data.Scripts.ShipPoints
+namespace ShipPoints
 {
     [MySessionComponentDescriptor(MyUpdateOrder.AfterSimulation)]
     internal class MasterSession : MySessionComponentBase
     {
-        public static MasterSession I;
-
         public const ushort ComId = 42511;
         public const string Keyword = "/debug";
         public const string DisplayName = "Debug";
+        public static MasterSession I;
 
         private readonly PointCheck _pointCheck = new PointCheck();
 
@@ -30,9 +22,6 @@ namespace SCModRepository_Dev.Gamemode_Mods.Development.Starcore_Sharetrack_Dev.
 
             try
             {
-                MyNetworkHandler.Init();
-                if (!NetworkApi.IsInitialized)
-                    NetworkApi.Init(ComId, DisplayName, Keyword);
                 HeartNetwork.I = new HeartNetwork();
                 HeartNetwork.I.LoadData(42521);
                 CommandHandler.Init();
@@ -53,7 +42,6 @@ namespace SCModRepository_Dev.Gamemode_Mods.Development.Starcore_Sharetrack_Dev.
                 TrackingManager.Close();
                 CommandHandler.Close();
                 HeartNetwork.I.UnloadData();
-                MyNetworkHandler.Static?.Dispose();
             }
             catch (Exception ex)
             {
@@ -93,7 +81,6 @@ namespace SCModRepository_Dev.Gamemode_Mods.Development.Starcore_Sharetrack_Dev.
         {
             try
             {
-
             }
             catch (Exception ex)
             {

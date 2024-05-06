@@ -1,10 +1,9 @@
 ﻿using System;
-using klime.PointCheck;
 using Sandbox.ModAPI;
 using VRage.Game.Components;
 using VRage.Utils;
 
-namespace SCModRepository.Gamemode_Mods.Stable.Starcore_Sharetrack.Data.Scripts.ShipPoints.MatchTimer
+namespace ShipPoints.MatchTiming
 {
     /// <summary>
     ///     Keeps track of the match timer for networking and other mods.
@@ -20,9 +19,9 @@ namespace SCModRepository.Gamemode_Mods.Stable.Starcore_Sharetrack.Data.Scripts.
         public const ushort NetworkId = 8576;
         public const long ModMessageId = 8573643466;
         public static MatchTimer I;
-        public bool IsMatchEnded = true;
 
         private double _matchDurationMinutes = 20;
+        public bool IsMatchEnded = true;
 
         /// <summary>
         ///     Match duration, in format [mm:ss].
@@ -49,10 +48,7 @@ namespace SCModRepository.Gamemode_Mods.Stable.Starcore_Sharetrack.Data.Scripts.
         /// </summary>
         public double MatchDurationMinutes
         {
-            get
-            {
-                return _matchDurationMinutes;
-            }
+            get { return _matchDurationMinutes; }
             set
             {
                 _matchDurationMinutes = value;
@@ -79,26 +75,33 @@ namespace SCModRepository.Gamemode_Mods.Stable.Starcore_Sharetrack.Data.Scripts.
         }
 
         /// <summary>
-        /// NON-SYNCHRONIZED tick counter, incremented once per UpdateAfterSimulation().
+        ///     NON-SYNCHRONIZED tick counter, incremented once per UpdateAfterSimulation().
         /// </summary>
-        public int Ticks = 0;
+        public int Ticks;
 
         public override void UpdateAfterSimulation()
         {
-            Ticks++;
-            //MyAPIGateway.Utilities.SendModMessage(ModMessageId, CurrentMatchTime);
-
-            if (DateTime.UtcNow > EndTime && !IsMatchEnded && MyAPIGateway.Session.IsServer)
+            try
             {
-                PointCheck.EndMatch();
-                MyLog.Default.WriteLineAndConsole("[MatchTimer] Auto-Stopped Match. " + CurrentMatchTime);
+                Ticks++;
+                //MyAPIGateway.Utilities.SendModMessage(ModMessageId, CurrentMatchTime);
+
+                if (DateTime.UtcNow > EndTime && !IsMatchEnded && MyAPIGateway.Session.IsServer)
+                {
+                    PointCheck.EndMatch();
+                    MyLog.Default.WriteLineAndConsole("[MatchTimer] Auto-Stopped Match. " + CurrentMatchTime);
+                }
+
+                // Update every 10 seconds if is server
+                if (!MyAPIGateway.Session.IsServer || Ticks % TimerUpdateInterval != 0)
+                    return;
+
+                MatchTimerPacket.SendMatchUpdate(this);
             }
-
-            // Update every 10 seconds if is server
-            if (!MyAPIGateway.Session.IsServer || Ticks % TimerUpdateInterval != 0)
-                return;
-
-            MatchTimerPacket.SendMatchUpdate(this);
+            catch (Exception ex)
+            {
+                Log.Error(ex);
+            }
         }
 
         #endregion
