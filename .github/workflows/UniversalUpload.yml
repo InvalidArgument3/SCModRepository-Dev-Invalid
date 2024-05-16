@@ -12,32 +12,44 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4.1.4
-      - id: set-matrix
-        run: bash ModIdFinder.sh >> $GITHUB_OUTPUT
-  
-  login:
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4.1.4
-      - uses: AnarkisGaming/workshop@v1
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v44
         with:
-          appID: 244850
-          login: true
-        env:
-          STEAM_ACCOUNT_NAME: ${{ secrets.accountname }}
-          STEAM_PASSWORD: ${{ secrets.password }}
+            separator: ','
+      
+      #- name: List all changed files
+      #  env:
+      #    ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+      #  run: |
+      #    for file in ${ALL_CHANGED_FILES}; do
+      #      echo "$file was changed"
+      #    done
+
+      - id: set-matrix
+        run: bash ModIdFinder.sh "${{ steps.changed-files.outputs.all_changed_files }}" >> $GITHUB_OUTPUT
   
   workshop-upload:
-    needs: [setup, login]
+    needs: setup
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4.1.4
+        with:
+          fetch-depth: 0
+          
+      - name: Delay
+        run: sleep $((${{ strategy.job-index }} * 10))
+        
       - uses: AnarkisGaming/workshop@v1
         with:
           appID: 244850
+          login: true
           publishedFileID: ${{ matrix.value }}
           path: ${{ matrix.path }}
           changelog: ${{ github.event.head_commit.message }}
+        env:
+          STEAM_ACCOUNT_NAME: ${{ secrets.accountname }}
+          STEAM_PASSWORD: ${{ secrets.password }}
